@@ -1,0 +1,331 @@
+---
+title: '手写Promise【05】-Promise 方法的异常捕获以及 then 方法实现可选参数'
+date: 2021-03-01T18:32:14Z
+lastmod: '2021-03-01'
+tags: ['Promise', 'JavaScript', '手写系列']
+draft: false
+summary: 'Promise 方法的异常捕获以及 then 方法实现可选参数'
+layout: PostSimple
+---
+
+## 1. 捕获自定义 `LyPromise` 中的错误
+
+```javascript {7, 9, 11, 50, 53-57, 61, 64-66, 73-80, 83-90} showLineNumbers
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    try {
+      executor(this.resolve, this.reject)
+    } catch (error) {
+      this.reject(error)
+    }
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  // 成功回调
+  successCallback = []
+  // 失败回调
+  failCallback = []
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+    this.value = value
+    // 判断成功回调是否存在，如果存在 就调用成功回调
+    // this.successCallback && this.successCallback(this.value);
+    while (this.successCallback.length) {
+      this.successCallback.shift()(this.value) //执行
+    }
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+    // 判断失败回调是否存在，如果存在 就调用失败回调
+    // this.failCallback && this.failCallback(this.reason)
+    while (this.failCallback.length) {
+      this.failCallback.shift()(this.reason)
+    }
+  }
+
+  then(successCallback, failCallback) {
+    let Promise2 = new LyPromise((resolve, reject) => {
+      if (this.status === FULFILLED) {
+        setTimeout(() => {
+          try {
+            let x = successCallback(this.value)
+            resolvePromise(Promise2, x, resolve, reject)
+          } catch (error) {
+            //  Q: 为啥要用 reject
+            //  A: 链式调用 then 方法的时候，上一个发生了错误的 then 需要在下一个 then 方法中抛出
+            reject(error)
+          }
+        }, 0)
+      } else if (this.status === REJECTED) {
+        setTimeout(() => {
+          try {
+            let x = failCallback(this.reason)
+            resolvePromise(Promise2, x, resolve, reject)
+          } catch (error) {
+            reject(error)
+          }
+        }, 0)
+      } else {
+        // 执行器是异步操作时，status还是pending，
+        // 所以此时并不知道是成功还是失败回调，那么这里就需要把这两个回调
+        // 存储起来
+        this.successCallback.push(() => {
+          setTimeout(() => {
+            try {
+              let x = successCallback(this.value)
+              resolvePromise(Promise2, x, resolve, reject)
+            } catch (error) {
+              reject(error)
+            }
+          }, 0)
+        })
+        this.failCallback.push(() => {
+          setTimeout(() => {
+            try {
+              let x = failCallback(this.reason)
+              resolvePromise(Promise2, x, resolve, reject)
+            } catch (error) {
+              reject(error)
+            }
+          }, 0)
+        })
+      }
+    })
+
+    return Promise2
+  }
+}
+
+function resolvePromise(promise2, x, resolve, reject) {
+  if (promise2 === x) {
+    return reject(new TypeError('Promise 被循环引用了!!!'))
+  }
+
+  if (x instanceof LyPromise) {
+    // promise对象
+    x.then(resolve, reject)
+  } else {
+    // 普通值
+    resolve(x)
+  }
+}
+
+module.exports = LyPromise
+```
+
+## 2. `then` 方法的参数变为可选参数
+
+在 `Promise` 中 `then` 方法中的**成功回调**和**失败回调**是可选参数，属于可写可不写的。
+
+```javascript
+let promise = new Promise((resolve, reiect) => {
+  resolve(100)
+})
+
+promise
+  .then()
+  .then()
+  .then()
+  .then((value) => {
+    console.log(value) //  100
+  })
+```
+
+当在前一个 `then` 方法中不传递任何参数的时候，实际上等同于传递了一个**返回了自己**的回调函数：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/711f72df8c4f4b0dadefacbba0d2ecef.png)
+
+所以只要判断一下这个 `then`方法有没有传递参数应该就可以了，如果没有传递参数，那么就给他补一个参数。
+
+```javascript {2, 3} showLineNumbers
+  then(successCallback, failCallback) {
+        successCallback = successCallback ? successCallback : value => value;
+        failCallback = failCallback ? failCallback : reason => reason;
+        let Promise2 = new LyPromise((resolve, reject) => {
+            if (this.status === FULFILLED) {
+                setTimeout(() => {
+                    try {
+                        let x = successCallback(this.value);
+                        resolvePromise(Promise2, x, resolve, reject);
+                    } catch (error) {
+                        //  Q: 为啥要用 reject
+                        //  A: 链式调用 then 方法的时候，上一个发生了错误的 then 需要在下一个 then 方法中抛出
+                        reject(error);
+                    }
+                }, 0)
+            } else if (this.status === REJECTED) {
+                setTimeout(() => {
+                    try {
+                        let x = failCallback(this.reason);
+                        resolvePromise(Promise2, x, resolve, reject);
+                    } catch (error) {
+                        reject(error);
+                    }
+                }, 0)
+            } else {
+                // 执行器是异步操作时，status还是pending，
+                // 所以此时并不知道是成功还是失败回调，那么这里就需要把这两个回调
+                // 存储起来
+                this.successCallback.push(() => {
+                    setTimeout(() => {
+                        try {
+                            let x = successCallback(this.value);
+                            resolvePromise(Promise2, x, resolve, reject);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }, 0);
+                });
+                this.failCallback.push(() => {
+                    setTimeout(() => {
+                        try {
+                            let x = failCallback(this.reason);
+                            resolvePromise(Promise2, x, resolve, reject);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }, 0);
+                });
+            }
+        })
+
+        return Promise2;
+
+    }
+```
+
+测试一下：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/d319107e64f74369a79ce44883ea4bde.png)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/49ff83b7599240449a3c084234a3414d.png)
+
+## 3. 目前所有代码
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    try {
+      executor(this.resolve, this.reject)
+    } catch (error) {
+      this.reject(error)
+    }
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  // 成功回调
+  successCallback = []
+  // 失败回调
+  failCallback = []
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+    this.value = value
+    // 判断成功回调是否存在，如果存在 就调用成功回调
+    // this.successCallback && this.successCallback(this.value);
+    while (this.successCallback.length) {
+      this.successCallback.shift()(this.value) //执行
+    }
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+    // 判断失败回调是否存在，如果存在 就调用失败回调
+    // this.failCallback && this.failCallback(this.reason)
+    while (this.failCallback.length) {
+      this.failCallback.shift()(this.reason)
+    }
+  }
+
+  then(successCallback, failCallback) {
+    let Promise2 = new LyPromise((resolve, reject) => {
+      if (this.status === FULFILLED) {
+        setTimeout(() => {
+          try {
+            let x = successCallback(this.value)
+            resolvePromise(Promise2, x, resolve, reject)
+          } catch (error) {
+            //  Q: 为啥要用 reject
+            //  A: 链式调用 then 方法的时候，上一个发生了错误的 then 需要在下一个 then 方法中抛出
+            reject(error)
+          }
+        }, 0)
+      } else if (this.status === REJECTED) {
+        setTimeout(() => {
+          try {
+            let x = failCallback(this.reason)
+            resolvePromise(Promise2, x, resolve, reject)
+          } catch (error) {
+            reject(error)
+          }
+        }, 0)
+      } else {
+        // 执行器是异步操作时，status还是pending，
+        // 所以此时并不知道是成功还是失败回调，那么这里就需要把这两个回调
+        // 存储起来
+        this.successCallback.push(() => {
+          setTimeout(() => {
+            try {
+              let x = successCallback(this.value)
+              resolvePromise(Promise2, x, resolve, reject)
+            } catch (error) {
+              reject(error)
+            }
+          }, 0)
+        })
+        this.failCallback.push(() => {
+          setTimeout(() => {
+            try {
+              let x = failCallback(this.reason)
+              resolvePromise(Promise2, x, resolve, reject)
+            } catch (error) {
+              reject(error)
+            }
+          }, 0)
+        })
+      }
+    })
+
+    return Promise2
+  }
+}
+
+function resolvePromise(promise2, x, resolve, reject) {
+  if (promise2 === x) {
+    return reject(new TypeError('Promise 被循环引用了!!!'))
+  }
+
+  if (x instanceof LyPromise) {
+    // promise对象
+    x.then(resolve, reject)
+  } else {
+    // 普通值
+    resolve(x)
+  }
+}
+
+module.exports = LyPromise
+```

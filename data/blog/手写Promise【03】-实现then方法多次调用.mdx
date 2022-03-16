@@ -1,0 +1,219 @@
+---
+title: '手写Promise【03】-实现then方法多次调用与链式调用'
+date: 2021-02-28T17:32:14Z
+lastmod: '2021-02-28'
+tags: ['Promise', 'JavaScript', '手写系列']
+draft: false
+summary: '多次调用与链式调用'
+layout: PostSimple
+---
+
+## 1. `then` 方法的多次调用
+
+我们在定义成功`successCallback `和失败`failCallback `的回调的时候，只定义了一个值，没有考虑到 then 方法被多次在异步中调用的情况，所以在这里应该将成功和失败的回调定义成为一个可收纳多个值的东西--`数组`。
+
+```javascript
+successCallback = []
+failCallback = []
+```
+
+所以 `then` 方法中的回调存储也随之改变：
+
+```javascript
+this.successCallback.push(successCallback)
+this.failCallback.push(failCallback)
+```
+
+到目前为止，多个回调函数都已经被存在了成功/失败的**回调函数数组**中了，当状态变为成功/失败的时候就应该依次调用回调函数数组中的每一项，所以 `resolve`/`reject` 中应该改为：
+
+```javascript
+resolve = (value) => {
+  if (this.status !== PENDING) return
+  this.status = FULFILLED
+  this.value = value
+  while (this.successCallback.length) {
+    //  数组的第一项应该先被执行，且数组第一项就是需要的回调函数所以可以直接调用
+    this.successCallBack.shift()(this.value)
+  }
+}
+reject = (value) => {
+  if (this.status !== PENDING) return
+  this.status = REJECTED
+  this.reason = reason
+  while (this.failCallback.length) {
+    // 同理 resolve
+    this.failCallback.shift()(this.reason)
+  }
+}
+```
+
+`Promise` 中 `then` 方法的可以被多次调用就完成了。
+
+## 2. `then` 方法的链式调用
+
+```javascript
+promise.then().then().then()
+```
+
+### 2.1 对 then 方法的实现进行分析
+
+1. `then` 方法是 `Promise` 中的。
+2. `then` 方法既然能够链式调用，说明 `then` 方法的返回值就是一个 `Promise` 对象。
+
+```javascript
+//  既然 then 方法返回的是一个 Promise 对象，那就创建一个 Promise 对象让它返回
+then(successCallback, failCallback) {
+    let Promise2 = new LyPromise(() => {
+        if (this.status === FULFILLED) {
+            successCallback(this.value);
+        } else if (this.status === REJECTED) {
+            failCallback(this.reason);
+        }
+    });
+    return Promise2;
+};
+```
+
+这样，`then` 就返回一个 `Promise` 对象可以给到**下一个调用的 `then`** 了。
+
+现在，我们需要考虑**下一个 `then` 方法**如何拿到这个 **被前一个`then` 返回的 `Promise` 对象**。
+
+```javascript
+then(successCallback, failCallback) {
+    let Promise2 = new LyPromise((resolve, reject) => {
+        //  当成功/失败的时候就能得到这个成功/失败的回调，所以在这里也能够拿到这个的返回值
+        if (this.status === FULFILLED) {
+            //  这个 x 就是这个成功回调的返回值
+            let x = successCallback(this.value);
+            resolve(x);
+        } else if (this.status === REJECTED) {
+            let x = failCallback(this.reason);
+            reject(x);
+        }
+    });
+    return Promise2;
+};
+```
+
+这样 `then` 方法就可以返回一个 `Promise` 对象了。
+
+_但是，如果这个返回值就是一个 Promise 对象怎么办？_
+
+所以，接下来需要做的是：判断`x`的值是`普通值`还是 `Promise` 对象；
+
+- 如果是`普通值`直接 `resolve`；
+- 如果是 `Promise` 对象，再根据 `Promise`对象的返回结果来判断使用 `resolve` 还是 `reject` ；
+
+```javascript
+//  这里写成一个函数方便复用
+function resolvePromise(x, resolve, reject) {
+  //  Q: 该怎么判断这个 x 是不是一个 Promise对象
+  //  A: 判断 x 是不是 LyPromise 的一个实例对象
+  if (x instanceof LyPromise) {
+    x.then(resolve, reject)
+  } else {
+    resolve(x)
+  }
+}
+```
+
+检查 `x` 是不是一个 `Promise` 对象就写好了。
+
+### 2.2 `then` 方法的链式调用代码
+
+```javascript
+then(successCallback, failCallback) {
+    let Promise2 = new LyPromise((resolve, reject) => {
+        if (this.status === FULFILLED) {
+            let x = successCallback(this.value);
+            resolvePromise(x, resolve, reject);
+        } else if (this.status === REJECTED) {
+            let x = failCallback(this.reason);
+            resolvePromise(x, resolve, reject);
+        } else {
+            this.successCallback.push(successCallback);
+            this.failCallback.push(failCallback);
+        }
+    })
+    return Promise2;
+}
+
+```
+
+## 3. 到目前为止实现的 `Promise` 代码
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  // 成功回调
+  successCallback = []
+  // 失败回调
+  failCallback = []
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+    this.value = value
+    // 判断成功回调是否存在，如果存在 就调用成功回调
+    // this.successCallback && this.successCallback(this.value);
+    while (this.successCallback.length) {
+      this.successCallback.shift()(this.value) //执行
+    }
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+    // 判断失败回调是否存在，如果存在 就调用失败回调
+    // this.failCallback && this.failCallback(this.reason)
+    while (this.failCallback.length) {
+      this.failCallback.shift()(this.reason)
+    }
+  }
+
+  then(successCallback, failCallback) {
+    let Promise2 = new LyPromise((resolve, reject) => {
+      if (this.status === FULFILLED) {
+        let x = successCallback(this.value)
+        resolvePromise(x, resolve, reject)
+      } else if (this.status === REJECTED) {
+        let x = failCallback(this.reason)
+        resolvePromise(x, resolve, reject)
+      } else {
+        // 执行器是异步操作时，status还是pending，
+        // 所以此时并不知道是成功还是失败回调，那么这里就需要把这两个回调
+        // 存储起来
+        this.successCallback.push(successCallback)
+        this.failCallback.push(failCallback)
+      }
+    })
+
+    return Promise2
+  }
+}
+
+function resolvePromise(x, resolve, reject) {
+  if (x instanceof LyPromise) {
+    // promise对象
+    x.then(resolve, reject)
+  } else {
+    // 普通值
+    resolve(x)
+  }
+}
+
+module.exports = LyPromise
+```

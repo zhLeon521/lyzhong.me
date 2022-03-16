@@ -1,0 +1,138 @@
+---
+title: '手写Promise【02】-异步逻辑实现'
+date: 2021-02-28T16:32:14Z
+lastmod: '2021-02-28'
+tags: ['Promise', 'JavaScript', '手写系列']
+draft: false
+summary: '异步逻辑实现'
+layout: PostSimple
+---
+
+> 上次手写的 Promise 没有做异步处理，本篇实现一下。
+
+## 1. 上次实现的 `Promise`
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+
+    this.value = value
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+  }
+
+  then(successCallback, failCallback) {
+    if (this.status === FULFILLED) {
+      successCallback(this.value)
+    } else if (this.status === REJECTED) {
+      failCallback(this.reason)
+    }
+  }
+}
+
+module.exports = LyPromise
+```
+
+## 2. 在调用 `LyPromise` 时加一段异步代码
+
+```javascript
+const LyPromise = require('./LyPromise')
+
+let promise = new LyPromise((resolve, reject) => {
+  setTimeout(() => {
+    resolve('成功')
+    // reject("失败");
+  }, 2000)
+})
+
+promise.then(
+  (value) => {
+    console.log(value)
+  },
+  (reason) => {
+    console.log(reason)
+  }
+)
+```
+
+分析：
+
+- 按照从上到下的顺序，在 `new` 一个 `LyPromise` 之后， 它里面的回调函数会立即执行。
+- 在执行的过程中遇到了 `setTimeout` 异步函数，延迟 2s 执行里面的逻辑。
+- `promise.then` 中的回调是属于立即执行的，此时 then 方法执行，判断当前状态。然而此时的 `status` 的状态依然是`PENDING`。我们在 `LyPromise` 定义的 `then` 方法没有对 `PENDING` 的判断,需要补充。
+
+```javascript {15-19, 25-26, 33-35, 45-49} showLineNumbers
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  successCallback = undefined
+  failCallback = undefined
+  //如果执行器中存在异步操作，如ajax，定时器任务的时候，then函数中status还是等待状态，
+  //此时并不知道要执行成功还是失败回调，也就是说resolve和reject会被等待执行，
+  //所以只需要在resolve和reject判断有无被我们存储起来的成功或失败回调，再执行就行
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+    this.value = value
+    // 判断成功回调是否存在，如果存在 就调用成功回调
+    this.successCallback && this.successCallback(this.value)
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+    // 判断失败回调是否存在，如果存在 就调用失败回调
+    this.failCallback && this.failCallback(this.reason)
+  }
+
+  then(successCallback, failCallback) {
+    if (this.status === FULFILLED) {
+      successCallback(this.value)
+    } else if (this.status === REJECTED) {
+      failCallback(this.reason)
+    } else {
+      // 执行器是异步操作时，status还是pending，
+      // 所以此时并不知道是成功还是失败回调，那么这里就需要把这两个回调
+      // 存储起来
+      this.successCallback = successCallback
+      this.failCallback = failCallback
+    }
+  }
+}
+
+module.exports = LyPromise
+```
+
+完毕。

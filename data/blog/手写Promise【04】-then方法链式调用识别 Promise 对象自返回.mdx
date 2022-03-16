@@ -1,0 +1,175 @@
+---
+title: '手写Promise【04】-then方法链式调用识别 Promise 对象自返回'
+date: 2021-02-28T18:32:14Z
+lastmod: '2021-02-28'
+tags: ['Promise', 'JavaScript', '手写系列']
+draft: false
+summary: 'then方法链式调用识别 Promise 对象自返回'
+layout: PostSimple
+---
+
+来看一个例子：
+
+```javascript
+let promise = new Promise((resolve, reject) => {
+  resolve(1000)
+})
+
+let p1 = promise.then((value) => {
+  console.log(value)
+  return p1
+})
+
+p1.then(
+  (resolve) => {
+    console.log(resolve)
+  },
+  (reject) => {
+    console.log(reject)
+  }
+)
+```
+
+像这种情况，`p1`的`then`再一次调用了自身这个`Promise`对象，就会死循环，这里直接会报错。
+
+```javascript
+[TypeError: Chaining cycle detected for promise #<Promise>]
+```
+
+所以，我们接下来继续完善 `Promise` 让 `LyPromise` 也能在发生循环调用的时候报错。
+
+`Promise2` 是被返回的 `Promise` 对象，`x` 是 `成功/失败回调`后返回的 `Promise` 对象，那么如果这两个值是相同的也就意味着自己返回了自己。
+所以，加个判断：
+
+```javascript
+function resolvePromise(Promise2, x, resolve, reject) {
+  if (Promise2 === x) {
+    return reject(new TypeError('Promise 被循环引用了！！！'))
+  }
+  if (x instanceof LyPromise) {
+    // promise对象
+    x.then(resolve, reject)
+  } else {
+    // 普通值
+    resolve(x)
+  }
+}
+```
+
+值得注意的是，`Promise2`对象是在`new LyPromise`**执行结束之后**才可以拿到的，但我们需要将`Promise2`在`new`的**过程中**就传给`resolvePromise` 函数。显然目前的代码是不能够满足这样的需求的，因为此时完全就获取不到 `Promise2`。
+
+**这里就存在了一个异步问题**，所以我们需要使用一个定时器，让`new LyPromise`这个**过程结束之后**我们再来执行`resolvePromise` 函数，就可以得到`Promise2`。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/10fd993751dd4265b1c51cd3df6f0278.png)
+
+测试代码：
+
+```javascript
+let promise = new LyPromise((resolve, reject) => {
+  resolve(1000)
+})
+
+let p1 = promise.then((value) => {
+  console.log(value)
+  return p1
+})
+
+p1.then(
+  (resolve) => {
+    console.log(resolve)
+  },
+  (reject) => {
+    console.log(reject)
+  }
+)
+```
+
+运行结果：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/46d30efe968648eb8b42c376bec1926f.png)
+到目前为止，我们就实现了 `then` 方法**在链式调用中如何判断 `Promise` 是不是返回了自己**。
+
+完整代码：
+
+```javascript {45, 48, 68-70}
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  // 成功回调
+  successCallback = []
+  // 失败回调
+  failCallback = []
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+    this.value = value
+    // 判断成功回调是否存在，如果存在 就调用成功回调
+    // this.successCallback && this.successCallback(this.value);
+    while (this.successCallback.length) {
+      this.successCallback.shift()(this.value) //执行
+    }
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+    // 判断失败回调是否存在，如果存在 就调用失败回调
+    // this.failCallback && this.failCallback(this.reason)
+    while (this.failCallback.length) {
+      this.failCallback.shift()(this.reason)
+    }
+  }
+
+  then(successCallback, failCallback) {
+    let Promise2 = new LyPromise((resolve, reject) => {
+      if (this.status === FULFILLED) {
+        setTimeout(() => {
+          let x = successCallback(this.value)
+          resolvePromise(Promise2, x, resolve, reject)
+        }, 0)
+      } else if (this.status === REJECTED) {
+        setTimeout(() => {
+          let x = failCallback(this.reason)
+          resolvePromise(Promise2, x, resolve, reject)
+        }, 0)
+      } else {
+        // 执行器是异步操作时，status还是pending，
+        // 所以此时并不知道是成功还是失败回调，那么这里就需要把这两个回调
+        // 存储起来
+        this.successCallback.push(successCallback)
+        this.failCallback.push(failCallback)
+      }
+    })
+
+    return Promise2
+  }
+}
+
+function resolvePromise(promise2, x, resolve, reject) {
+  if (promise2 === x) {
+    return reject(new TypeError('Promise 被循环引用了!!!'))
+  }
+
+  if (x instanceof LyPromise) {
+    // promise对象
+    x.then(resolve, reject)
+  } else {
+    // 普通值
+    resolve(x)
+  }
+}
+
+module.exports = LyPromise
+```

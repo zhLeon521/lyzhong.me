@@ -1,0 +1,247 @@
+---
+title: '手写Promise【01】-Promise类核心逻辑实现'
+date: 2021-02-28T15:32:14Z
+lastmod: '2021-02-28'
+tags: ['Promise', 'JavaScript', '手写系列']
+draft: false
+summary: 'Promise类核心逻辑实现'
+layout: PostSimple
+---
+
+## 1. `Promise` 的基本使用
+
+1.  首先通过 `new` 关键字来创建一个 `Promise` 对象。创建完毕后就可以看到 `Promise` 实际上是一个`类`。
+2.  在执行这个类的时候，需要传递一个`回调函数`进来，这个回调函数`会立即执行`。
+3.  在回调函数内会`传递两个参数`：`resolve` 和 `reject`。调用这两个参数的时候会更改 `Promise` 的状态，所以这两个参数实际上是`两个函数`。
+4.  `Promise` 的状态改变：一旦状态确定就`不可更改`。
+
+- `resolve` 被调用时将状态会更改为成功：`pending -> fulfilled`
+- `reject` 被调用时将状态会更改为失败：`pending -> rejected`
+
+5.  在调用 `then` 方法时，判断当前的 `Promise` 状态，如果请求成功就调用成功的回调，失败就调用失败的回调。
+
+## 2. 手动实现 `Promise`
+
+1. `Promise` 是一个类， 所以用 `class` 关键字创建 一个类
+
+```javascript
+class LyPromise {}
+```
+
+2. 在 `LyPromise` 类执行的时候 需要传递回调函数进来，所以通过 构造函数 `constructor` 来接收这个回调函数
+
+```javascript
+class LyPromise {
+  constructor(executor) {
+    executor()
+  }
+}
+```
+
+3. 这个回调函数在被调用的时候有传递了 `resolve` 和 `reject` 两个函数。
+
+```javascript
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+  resolve = () => {}
+  reject = () => {}
+}
+```
+
+> 注：**这里的 `resolve` 和 `reject` 为啥要写成箭头函数？**
+>
+> 1.  这两个函数在被调用的时候**是直接被调用**的，如果这两个函数是一个普通函数的情况下，这两个函数里面的 this 就指向了 `window` 或者 `undefined`；
+> 2.  定义为箭头函数就是让 `this` 的指向就指向`当前的实例对象`，也就是创建的这个 Promise 对象
+> 3.  当调用 `resolve` 的时候需要将 `Promise` 的状态改为成功，调用 `reject` 的时候将 `Promise` 的状态更改为失败。
+
+```javascript
+// 更改状态就要有状态
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'reiected'
+// Q: 为啥定义成常量？  // A: 频繁使用方便复用
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+  // 因为这个状态是每一个 Promise 独有的状态，所以在这里定义成一个实例属性
+  status = PENDING
+  resolve = () => {
+    // 将状态更改为成功
+    this.status = FULFILLED
+  }
+  reject = () => {
+    // 将状态更改为失败
+    this.status = REJECTED
+  }
+}
+```
+
+5. `Promise` 的状态一经更改就不能再次改变，按照上面的写法调用了成功回调之后紧接着调用失败回调，这是有问题的，于是`加个判断`进行修改。
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'reiected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+  status = PENDING
+  resolve = () => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+  }
+  reject = () => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+  }
+}
+```
+
+6. 每个 `Promise` 对象都可以调用 `then` 方法，所以应该是存在于`原型对象`上的。
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'reiected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+  status = PENDING
+  resolve = () => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+  }
+  reject = () => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+  }
+  // 定义 then 方法用来判断状态
+  then(successCallback, failCallback) {
+    if (this.status === FULFILLED) {
+      successCallback()
+    } else if (this.status === REJECTED) {
+      failCallback()
+    }
+  }
+}
+```
+
+7. 当调用成功回调的时候应该`传递成功的值`，当调用失败回调的时候应该`传递失败的原因`。
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'reiected'
+
+class myPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+  status = PENDING
+
+  // 成功和失败，默认情况下是没有的，所以值应该是 undefined
+  value = undefined
+  reason = undefined
+
+  // 接收成功的值
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+
+    // 保存成功之后的值
+    this.value = value
+  }
+
+  // 接收失败的原因
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+
+    // 保存失败之后的原因
+    this.reason = reason
+  }
+  then(successCallback, failCallback) {
+    if (this.status === FULFILLED) {
+      successCallback(this.value)
+    } else if (this.status === REJECTED) {
+      failCallback(this.reason)
+    }
+  }
+}
+```
+
+8. 简化版 `Promise` 手写完毕。利用 `module.exports = LyPromise` 将其导出。并在 `index.js` 中引入，实例化。
+
+`LyPromise.js`
+
+```javascript
+const PENDING = 'pending'
+const FULFILLED = 'fulfilled'
+const REJECTED = 'rejected'
+
+class LyPromise {
+  constructor(executor) {
+    executor(this.resolve, this.reject)
+  }
+
+  status = PENDING
+
+  value = undefined
+  reason = undefined
+
+  resolve = (value) => {
+    if (this.status !== PENDING) return
+    this.status = FULFILLED
+
+    this.value = value
+  }
+
+  reject = (reason) => {
+    if (this.status !== PENDING) return
+    this.status = REJECTED
+    this.reason = reason
+  }
+
+  then(successCallback, failCallback) {
+    if (this.status === FULFILLED) {
+      successCallback(this.value)
+    } else if (this.status === REJECTED) {
+      failCallback(this.reason)
+    }
+  }
+}
+
+module.exports = LyPromise
+```
+
+`index.js`
+
+```javascript
+const LyPromise = require('./LyPromise')
+
+let promise = new LyPromise((resolve, reject) => {
+  resolve('成功')
+  // reject("失败");
+})
+
+promise.then(
+  (value) => {
+    console.log(value)
+  },
+  (reason) => {
+    console.log(reason)
+  }
+)
+
+//输出 成功。
+```
+
+接下来实现关于 `Promise` 异步的部分。
