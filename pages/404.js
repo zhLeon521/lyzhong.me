@@ -1,4 +1,4 @@
-import Link from '@/components/Link';
+import Link from '@/components/Link'
 
 export default function FourZeroFour() {
   return (
@@ -18,5 +18,5 @@ export default function FourZeroFour() {
         </Link>
       </div>
     </div>
-  );
+  )
 }

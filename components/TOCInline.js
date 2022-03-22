@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-no-useless-fragment */
 /**
  * @typedef TocHeading
  * @prop {string} value

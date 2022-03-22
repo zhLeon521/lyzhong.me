@@ -1,3 +1,5 @@
+/* eslint-disable no-useless-concat */
+/* eslint-disable no-return-assign */
 const fs = require('fs')
 const path = require('path')
 const inquirer = require('inquirer')

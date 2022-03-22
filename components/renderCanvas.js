@@ -1,3 +1,10 @@
+/* eslint-disable new-cap */
+/* eslint-disable eqeqeq */
+/* eslint-disable no-unused-expressions */
+/* eslint-disable no-inner-declarations */
+/* eslint-disable no-var */
+/* eslint-disable no-return-assign */
+/* eslint-disable no-invalid-this */
 /* eslint-disable no-sequences */
 
 function n(e) {
@@ -41,7 +48,7 @@ Line.prototype = {
     for (var n, i = 0, a = this.nodes.length; i < a; i++)
       (t = this.nodes[i]),
         0 < i &&
-        ((n = this.nodes[i - 1]),
+          ((n = this.nodes[i - 1]),
           (t.vx += (n.x - t.x) * e),
           (t.vy += (n.y - t.y) * e),
           (t.vx += n.vx * E.dampening),
@@ -114,7 +121,7 @@ function render() {
     //     f.amplitude
     //   );
     for (var e, t = 0; t < E.trails; t++) {
-      ; (e = lines[t]).update()
+      ;(e = lines[t]).update()
       e.draw()
     }
     ctx.frame++

@@ -1,3 +1,4 @@
+/* eslint-disable react/no-this-in-sfc */
 import React, { useState } from 'react'
 
 import siteMetadata from '@/data/siteMetadata'
