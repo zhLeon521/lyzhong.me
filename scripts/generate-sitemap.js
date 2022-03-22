@@ -27,10 +27,10 @@ const siteMetadata = require('../data/siteMetadata')
                   const source = fs.readFileSync(page, 'utf8')
                   const fm = matter(source)
                   if (fm.data.draft) {
-                    return
+                    return console.log(fm.data.draft)
                   }
                   if (fm.data.canonicalUrl) {
-                    return
+                    return console.log(fm.data.canonicalUrl)
                   }
                 }
                 const path = page
@@ -45,7 +45,7 @@ const siteMetadata = require('../data/siteMetadata')
                 const route = path === '/index' ? '' : path
 
                 if (page.search('pages/404.') > -1 || page.search(`pages/blog/[...slug].`) > -1) {
-                  return
+                  return console.log('')
                 }
                 return `
                         <url>

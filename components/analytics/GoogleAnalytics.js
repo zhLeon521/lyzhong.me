@@ -2,7 +2,7 @@ import Script from 'next/script'
 
 import siteMetadata from '@/data/siteMetadata'
 
-const GAScript = () => {
+const GaScript = () => {
   return (
     <>
       <Script
@@ -24,13 +24,13 @@ const GAScript = () => {
   )
 }
 
-export default GAScript
+export default GaScript
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/events
-export const logEvent = (action, category, label, value) => {
-  window.gtag?.('event', action, {
-    event_category: category,
-    event_label: label,
-    value: value,
+export const logEvent = (options) => {
+  window.gtag?.('event', options.action, {
+    event_category: options.category,
+    event_label: options.label,
+    value: options.value,
   })
 }
