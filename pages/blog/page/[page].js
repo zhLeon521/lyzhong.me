@@ -1,4 +1,3 @@
-/* eslint-disable radix */
 import { PageSEO } from '@/components/SEO'
 import siteMetadata from '@/data/siteMetadata'
 import { getAllFilesFrontMatter } from '@/lib/mdx'
@@ -23,7 +22,7 @@ export async function getStaticProps(context) {
     params: { page },
   } = context
   const posts = await getAllFilesFrontMatter('blog')
-  const pageNumber = parseInt(page)
+  const pageNumber = parseInt(page, 10)
   const initialDisplayPosts = posts.slice(POSTS_PER_PAGE * (pageNumber - 1), POSTS_PER_PAGE * pageNumber)
   const pagination = {
     currentPage: pageNumber,
