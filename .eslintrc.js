@@ -6,7 +6,14 @@ module.exports = {
     node: true,
     es6: true,
   },
-  extends: ['eslint:recommended', 'plugin:prettier/recommended', 'next', 'next/core-web-vitals'],
+  extends: [
+    'alloy',
+    'alloy/react',
+    'eslint:recommended',
+    'plugin:prettier/recommended',
+    'next',
+    'next/core-web-vitals',
+  ],
   rules: {
     'prettier/prettier': 'error',
     'react/react-in-jsx-scope': 'off',

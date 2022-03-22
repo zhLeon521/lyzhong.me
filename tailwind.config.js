@@ -1,11 +1,22 @@
 const defaultTheme = require('tailwindcss/defaultTheme')
 const colors = require('tailwindcss/colors')
 
+
 module.exports = {
   experimental: {
     optimizeUniversalDefaults: true,
   },
-  content: ['./pages/**/*.js', './components/**/*.js', './layouts/**/*.js', './lib/**/*.js'],
+  content: [
+    './pages/**/*.js',
+    './components/**/*.js',
+    './layouts/**/*.js',
+    './lib/**/*.js',
+    './data/**/*.mdx',
+    './pages/**/*.tsx',
+    './components/**/*.tsx',
+    './layouts/**/*.tsx',
+    './lib/**/*.ts',
+  ],
   darkMode: 'class',
   theme: {
     extend: {
@@ -19,46 +30,94 @@ module.exports = {
         14: '3.5rem',
       },
       fontFamily: {
-        sans: ['InterVariable', ...defaultTheme.fontFamily.sans],
+        sans: ['Noto Sans SC', 'Inter', ...defaultTheme.fontFamily.sans],
       },
       colors: {
-        primary: colors.teal,
+        'black-75': 'rgba(0,0,0,0.75)',
+        body: 'rgb(251, 251, 252)',
+        brand: 'rgb(251, 81, 81)',
+        'body-secondary': 'rgb(240, 241, 244)',
+        'body-secondary-dark': 'rgb(30, 34, 41)',
+        'body-dark': 'rgb(22, 24, 29)',
+        'body-dark-75': 'rgba(22, 24, 29, 0.75)',
+        'typeface-primary': 'rgb(4, 5, 47)',
+        'typeface-secondary': 'rgb(98, 107, 132)',
+        'typeface-teriary': 'rgb(87, 95, 117)',
+        'typeface-primary-dark': 'rgb(232, 232, 253)',
+        'typeface-secondary-dark': 'rgb(152, 160, 179)',
+        'typeface-teriary-dark': 'rgb(196, 201, 212)',
+        'border-primary': 'rgb(240, 241, 244)',
+        'border-primary-dark': 'rgb(30, 34, 41)',
+        primary: colors.red,
         gray: colors.neutral,
+        dark: '#000',
+        code: {
+          green: '#b5f4a5',
+          yellow: '#ffe484',
+          purple: '#d9a9ff',
+          red: '#ff8383',
+          blue: '#93ddfd',
+          white: '#fff',
+        },
+        themeColor: {
+          50: '#fee6e6',
+          100: '#fecdcd',
+          150: '#fdb4b4',
+          200: '#fc9c9c',
+          250: '#fc8383',
+          300: '#fb6a6a',
+          350: '#fb5151',
+          400: '#fa3838',
+          450: '#f91f1f',
+          500: '#f90606',
+          550: '#e00606',
+          600: '#c70505',
+          650: '#ae0404',
+          700: '#950404',
+          750: '#7c0303',
+          800: '#630303',
+          850: '#4b0202',
+          900: '#320101',
+        },
+      },
+      screens: {
+        xs: '375px',
+        s: '475px',
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        '2lg': '1190px',
+        xl: '1280px',
+        '2xl': '1536px',
       },
       typography: (theme) => ({
         DEFAULT: {
           css: {
-            color: theme('colors.gray.700'),
+            color: theme('colors.typeface-secondary'),
             a: {
-              color: theme('colors.primary.500'),
+              color: theme('colors.typeface-primary'),
+              textDecoration: 'none',
+              borderBottom: `2px solid transparent`,
+              transition: 'border-color 0.3s ease, color 0.3s ease',
               '&:hover': {
-                color: `${theme('colors.primary.600')} !important`,
+                borderBottom: `2px solid ${theme('colors.themeColor.500')}`,
               },
               code: { color: theme('colors.primary.400') },
             },
-            h1: {
-              fontWeight: '700',
-              letterSpacing: theme('letterSpacing.tight'),
-              color: theme('colors.gray.900'),
+            'h1,h2,h3,h4,h5,h6': {
+              color: theme('colors.typeface-primary'),
             },
-            h2: {
-              fontWeight: '700',
-              letterSpacing: theme('letterSpacing.tight'),
-              color: theme('colors.gray.900'),
-            },
-            h3: {
-              fontWeight: '600',
-              color: theme('colors.gray.900'),
-            },
-            'h4,h5,h6': {
-              color: theme('colors.gray.900'),
+            'h2,h3,h4': {
+              'scroll-margin-top': defaultTheme.spacing[32],
             },
             pre: {
-              backgroundColor: theme('colors.gray.800'),
+              backgroundColor: '#24283b',
+              marginLeft: '0.5rem',
+              marginRight: '0.5rem',
             },
             code: {
-              color: theme('colors.pink.500'),
-              backgroundColor: theme('colors.gray.100'),
+              color: '#cb3728',
+              backgroundColor: '#f3f3f3',
               paddingLeft: '4px',
               paddingRight: '4px',
               paddingTop: '2px',
@@ -92,40 +151,33 @@ module.exports = {
               color: theme('colors.gray.900'),
               borderLeftColor: theme('colors.gray.200'),
             },
+            img: {
+              borderRadius: '12px',
+            },
           },
         },
         dark: {
           css: {
-            color: theme('colors.gray.300'),
+            color: theme('colors.typeface-secondary-dark'),
             a: {
-              color: theme('colors.primary.500'),
+              color: theme('colors.typeface-primary-dark'),
+              textDecoration: 'none',
+              borderBottom: `2px solid transparent`,
+              transition: 'border-color 0.3s ease, color 0.3s ease',
               '&:hover': {
-                color: `${theme('colors.primary.400')} !important`,
+                borderBottom: `2px solid ${theme('colors.themeColor.350')}`,
               },
               code: { color: theme('colors.primary.400') },
             },
-            h1: {
-              fontWeight: '700',
-              letterSpacing: theme('letterSpacing.tight'),
-              color: theme('colors.gray.100'),
-            },
-            h2: {
-              fontWeight: '700',
-              letterSpacing: theme('letterSpacing.tight'),
-              color: theme('colors.gray.100'),
-            },
-            h3: {
-              fontWeight: '600',
-              color: theme('colors.gray.100'),
-            },
-            'h4,h5,h6': {
-              color: theme('colors.gray.100'),
+            'h1,h2,h3,h4,h5,h6': {
+              color: theme('colors.typeface-primary-dark'),
             },
             pre: {
-              backgroundColor: theme('colors.gray.800'),
+              backgroundColor: '#171717',
             },
             code: {
-              backgroundColor: theme('colors.gray.800'),
+              color: '#ff4532',
+              backgroundColor: '#171717',
             },
             details: {
               backgroundColor: theme('colors.gray.800'),
@@ -158,5 +210,9 @@ module.exports = {
       }),
     },
   },
-  plugins: [require('@tailwindcss/forms'), require('@tailwindcss/typography')],
+  plugins: [
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
+    require('@tailwindcss/aspect-ratio'),
+  ],
 }
